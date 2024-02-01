@@ -1,0 +1,14 @@
+print 15
+print 30
+var a = 1
+var b = 2
+var c = 3
+
+a = b + c
+b = a + c
+c = a + b
+
+var x = c + b - (a % b) + (a * c) + (b / c) * (a - b * c)
+
+print x + a + b 
+
