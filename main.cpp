@@ -43,29 +43,29 @@ public:
 
         switch (sourceCode[currentPos]) {
             case '+':
-                current_pos++;
-                return { token_type::PLUS, "+" };
+                currentPos++;
+                return {  TokenType::Plus, "+" };
             case '-':
-                current_pos++;
-                return { token_type::MINUS, "-" };
+                currentPos++;
+                return {  TokenType::Minus, "-" };
             case '*':
-                current_pos++;
-                return { token_type::MULTIPLY, "*" };
+                currentPos++;
+                return {  TokenType::Multiply, "*" };
             case '/':
-                current_pos++;
-                return { token_type::DIVIDE, "/" };
+                currentPos++;
+                return {  TokenType::Divide, "/" };
             case '%':
-                current_pos++;
-                return { token_type::MODULO, "%" };
+                currentPos++;
+                return {  TokenType::Modulo, "%" };
             case '(':
-                current_pos++;
-                return { token_type::LPAREN, "(" };
+                currentPos++;
+                return {  TokenType::LeftParenthesis, "(" };
             case ')':
-                current_pos++;
-                return { token_type::RPAREN, ")" };
+                currentPos++;
+                return {  TokenType::RightParenthesis, ")" };
             case '=':
-                current_pos++;
-                return { token_type::DECLARE, "=" };
+                currentPos++;
+                return {  TokenType::Declare, "=" };
         }
 
         if (isalpha(sourceCode[currentPos])) {
@@ -122,28 +122,28 @@ public:
 
 private:
     int parseStatement(Token& token) {
-         if (token.type == token_type::PRINT) {
-            token = lexer.get_next_token();  // Consume "print"
-            int result = parse_expression(tok);
-            cout << result << endl;
-            return result;
-        } else if (token.type == token_type::VAR) {
-            tok = lexer.get_next_token();  // Consume a variable name
-            if (token.type == token_type::IDENTIFIER) {
-                string variable_name = token.value;
-                token = lexer.get_next_token();  // Consume "="
+         if (token.type ==  TokenType::Print) {
+            token = lexer.getNextToken();  // get "print"
+            int outcome = parseExpression(token);
+            cout<<outcome <<endl;
+            return outcome;
+        } else if (token.type ==  TokenType::Var) {
+            token = lexer.getNextToken();  // get z variable name
+            if (token.type ==  TokenType::Identifier) {
+                string name_of_variable = token.value;
+                token = lexer.getNextToken();  // get "="
 
-                if (token.type == token_type::DECLARE) {
-                    token = lexer.get_next_token();  // Consume a value
+                if (token.type ==  TokenType::Declare) {
+                    token = lexer.getNextToken();  // get a value
 
                     // check if the variable is already declared
-                    if (variables.find(variable_name) != variables.end()) {
-                        cerr << "Error: Variable '" << variable_name << "' already declared" << endl;
+                    if (variableTable.find(name_of_variable) != variableTable.end()) {
+                        cerr << "Error: Variable '" << name_of_variable << "' already declared" << endl;
                         return 0;
                     }
 
-                    int value = parse_expression(tok);
-                    variables[variable_name] = value;
+                    int value = parseExpression(token);
+                    variableTable[name_of_variable] = value;
                 } else {
                     cerr << "Error: Invalid variable declaration" << endl;
                     return 0;
@@ -152,27 +152,27 @@ private:
                 cerr << "Error: Invalid variable declaration" << endl;
                 return 0;
             }
-        } else if (token.type == token_type::IDENTIFIER) {
-            // Variable assignment
-            string variable_name = tok.value;
-            token = lexer.get_next_token();  // Consume '='
+        } else if (token.type ==  TokenType::Identifier) {
+            // assigning variable
+            string name_of_variable = tok.value;
+            token = lexer.getNextToken();  // get '='
 
-            if (token.type == token_type::DECLARE) {
-                tok = lexer.get_next_token();
+            if (token.type ==  TokenType::Declare) {
+                token = lexer.getNextToken();
 
-                // check if the variable is already declared
-                if (variables.find(variable_name) == variables.end()) {
-                    cerr << "Error: Variable '" << variable_name << "' not declared" << endl;
+                // to check if z variable has been declared already
+                if (variableTable.find(name_of_variable) == variableTable.end()) {
+                    cerr << "Error: Variable '" << name_of_variable << "' not declared" << endl;
                     return 0;
                 }
 
-                int value = parse_expression(tok);
-                variables[variable_name] = value;
+                int value = parseExpression(token);
+                variableTable[name_of_variable] = value;
 
-            } else if (token.type == token_type::PLUS || token.type == token_type::MINUS || token.type == token_type::MULTIPLY || token.type == token_type::DIVIDE || token.type == token_type::MODULO) {
-                token = lexer.get_next_token();
-                int value = parse_expression(token);
-                return value + variables[variable_name];
+            } else if (token.type ==  TokenType::Plus || token.type ==  TokenType::Minus || token.type ==  TokenType::Multiply || token.type ==  TokenType::Divide || token.type ==  TokenType::Modulo) {
+                token = lexer.getNextToken();
+                int value = parseExpression(token);
+                return value + variableTable[name_of_variable];
 
             }
             else {
@@ -181,8 +181,8 @@ private:
             }
 
         } else {
-            // Regular expression evaluation
-            return parse_expression(token);
+            return parseExpression(token);
+            // Regular expression 
         }
 
         return 0;
@@ -191,12 +191,12 @@ private:
     int parseExpression(Token& token) {
       int result = parse_term(token);
 
-        while (token.type == token_type::PLUS || token.type == token_type::MINUS) {
-            if (token.type == token_type::PLUS) {
-                token = lexer.get_next_token();  // Consume '+'
+        while (token.type ==  TokenType::Plus || token.type ==  TokenType::Minus) {
+            if (token.type ==  TokenType::Plus) {
+                token = lexer.getNextToken();  // get '+'
                 result += parse_term(token);
-            } else if (token.type == token_type::MINUS) {
-                token = lexer.get_next_token();  // Consume '-'
+            } else if (token.type ==  TokenType::Minus) {
+                token = lexer.getNextToken();  // zen get '-'
                 result -= parse_term(token);
             }
         }
@@ -206,12 +206,12 @@ private:
     int parseTerm(Token& token) {
         int result = parse_factor(token);
 
-        while (token.type == token_type::MULTIPLY || token.type == token_type::DIVIDE || token.type == token_type::MODULO) {
-            if (token.type == token_type::MULTIPLY) {
-                token = lexer.get_next_token();  // Consume '*'
+        while (token.type ==  TokenType::Multiply || token.type ==  TokenType::Divide || token.type ==  TokenType::Modulo) {
+            if (token.type ==  TokenType::Multiply) {
+                token = lexer.getNextToken();  // get '*' first
                 result *= parse_factor(token);
-            } else if (token.type == token_type::DIVIDE) {
-                token = lexer.get_next_token();  // Consume '/'
+            } else if (token.type ==  TokenType::Divide) {
+                token = lexer.getNextToken();  // get '/'
                 int divisor = parse_factor(token);
                 if (divisor != 0) {
                     result /= divisor;
@@ -219,8 +219,8 @@ private:
                     cerr << "Error: Division by zero" << endl;
                     return 0;
                 }
-            } else if (token.type == token_type::MODULO) {
-                token = lexer.get_next_token();  // Consume '%'
+            } else if (token.type ==  TokenType::Modulo) {
+                token = lexer.getNextToken();  // get '%'
                 int divisor = parse_factor(token);
                 if (divisor != 0) {
                     result %= divisor;
@@ -235,34 +235,32 @@ private:
     }
 
     int parseFactor(Token& token) {
-        if (token.type == token_type::INTEGER) {
+        if (token.type ==  TokenType::Integer) {
             int value = stoi(token.value);
-            token = lexer.get_next_token();  // Consume variable
+            token = lexer.getNextToken();  // get variable
             return value;
-        } else if (token.type == token_type::IDENTIFIER) {
-            string variable_name = token.value;
-            token = lexer.get_next_token();  // Consume variable
+        } else if (token.type ==  TokenType::Identifier) {
+            string name_of_variable = token.value;
+            token = lexer.getNextToken();  // get variable
 
-            if (variables.find(variable_name) != variables.end()) {
-                return variables[variable_name];
+            if (variableTable.find(name_of_variable) != variableTable.end()) {
+                return variableTable[name_of_variable];
             } else {
-                cerr << "Error: Variable '" << variable_name << "' not found" << endl;
+                cerr << "Error: Variable '" << name_of_variable << "' not found" << endl;
                 return 0;
             }
 
-        } else if (token.type == token_type::LPAREN) {
-            token = lexer.get_next_token();  // Consume '('
-            int result = parse_expression(tok);
-            if (token.type == token_type::RPAREN) {
-                token = lexer.get_next_token();  // Consume ')'
+        } else if (token.type ==  TokenType::LeftParenthesis) {
+            token = lexer.getNextToken();  // get '('
+            int result = parseExpression(tok);
+            if (token.type ==  TokenType::RightParenthesis) {
+                token = lexer.getNextToken();  // get ')'
                 return result;
             } else {
-                cerr << "Error: The parenthesis don't match" << endl;
+                cerr << "Error: The parenthesis in the given code doesn't match" << endl;
                 return 0;
             }
         }
-
-        // Invalid factor
         cerr << "Error: Invalid factor" << token.value << endl;
         return 0;
     }
