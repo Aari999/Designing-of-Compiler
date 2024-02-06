@@ -1,293 +1,262 @@
 #include <iostream>
-#include <fstream>
+#include <vector>
+#include <string>
 #include <unordered_map>
 
-enum class TokenType {
+enum class Tokentypes {
     Integer,
+    Identifier,
     Plus,
     Minus,
     Multiply,
     Divide,
     Modulo,
-    EndOfFile,
+    Assignment,
+    Semicolon,
     LeftParenthesis,
     RightParenthesis,
-    Var,
-    Const,
-    Declare,
-    Identifier,
-    Print
+    Unknown
 };
 
 struct Token {
-    TokenType type;
+    Tokentypes type;
     std::string value;
 };
 
-class SimpleLexer {
+class Lexer {
 public:
-    SimpleLexer(const std::string& sourceCode) : sourceCode(sourceCode), currentPos(0) {}
+    Lexer(const std::string& src) : source(src), current_position(0) {}
 
     Token getNextToken() {
-        while (currentPos < sourceCode.length() && isspace(sourceCode[currentPos])) {
-            currentPos++;
+        if (current_position >= source.length()) {
+            return {Tokentypes::Unknown, ""};
         }
 
-        if (currentPos >= sourceCode.length()) {
-            return {TokenType::EndOfFile, ""};
+        while (isspace(source[current_position])) {
+            current_position++;
         }
 
-        if (isdigit(sourceCode[currentPos])) {
-            return readIntegerToken();
+        if (isalpha(source[current_position]) || source[current_position] == '_') {
+            return getIdentifierToken();
+        } else if (isdigit(source[current_position])) {
+            return getIntegerToken();
+        } else {
+            return getOperatorToken();
         }
-
-        switch (sourceCode[currentPos]) {
-            case '+':
-                currentPos++;
-                return {  TokenType::Plus, "+" };
-            case '-':
-                currentPos++;
-                return {  TokenType::Minus, "-" };
-            case '*':
-                currentPos++;
-                return {  TokenType::Multiply, "*" };
-            case '/':
-                currentPos++;
-                return {  TokenType::Divide, "/" };
-            case '%':
-                currentPos++;
-                return {  TokenType::Modulo, "%" };
-            case '(':
-                currentPos++;
-                return {  TokenType::LeftParenthesis, "(" };
-            case ')':
-                currentPos++;
-                return {  TokenType::RightParenthesis, ")" };
-            case '=':
-                currentPos++;
-                return {  TokenType::Declare, "=" };
-        }
-
-        if (isalpha(sourceCode[currentPos])) {
-            return readIdentifierToken();
-        }
-
-        return {TokenType::EndOfFile, ""};
     }
 
 private:
-    Token readIntegerToken() {
-        std::string value;
-        while (currentPos < sourceCode.length() && isdigit(sourceCode[currentPos])) {
-            value += sourceCode[currentPos];
-            currentPos++;
+    Token getIdentifierToken() {
+        std::string val;
+        while (isalnum(source[current_position]) || source[current_position] == '_') {
+            val += source[current_position];
+            current_position++;
         }
-        return {TokenType::Integer, value};
+        return {Tokentypes::Identifier, val};
     }
 
-    Token readIdentifierToken() {
-        std::string value;
-        while (currentPos < sourceCode.length() && (isalnum(sourceCode[currentPos]) || sourceCode[currentPos] == '_')) {
-            value += sourceCode[currentPos];
-            currentPos++;
+    Token getIntegerToken() {
+        std::string val;
+        if (source[current_position] == '-') {
+            val += '-';
+            current_position++;
         }
-
-        if (value == "var") {
-            return {TokenType::Var, value};
-        } else if (value == "print") {
-            return {TokenType::Print, value};
+        while (isdigit(source[current_position])) {
+            val += source[current_position];
+            current_position++;
         }
-
-        return {TokenType::Identifier, value};
+        return {Tokentypes::Integer, val};
     }
 
-    std::string sourceCode;
-    size_t currentPos;
+    Token getOperatorToken() {
+        switch (source[current_position]) {
+            case '+':
+                current_position++;
+                return {Tokentypes::Plus, "+"};
+            case '-':
+                current_position++;
+                return {Tokentypes::Minus, "-"};
+            case '*':
+                current_position++;
+                return {Tokentypes::Multiply, "*"};
+            case '/':
+                current_position++;
+                return {Tokentypes::Divide, "/"};
+            case '%':
+                current_position++;
+                return {Tokentypes::Modulo, "%"};
+            case '=':
+                current_position++;
+                return {Tokentypes::Assignment, "="};
+            case '(':
+            	current_position++;
+            	return {Tokentypes::LeftParenthesis, "("};
+            case ')':
+            	current_position++;
+            	return {Tokentypes::RightParenthesis, ")"};
+            case ';':
+                current_position++;
+                return {Tokentypes::Semicolon, ";"};
+            default:
+                current_position++;
+                return {Tokentypes::Unknown, ""};
+        }
+    }
+    std::string source;
+    size_t current_position;
 };
 
-std::unordered_map<std::string, int> variableTable;
-
-class SimpleParser {
+class Parser {
 public:
-    SimpleParser(SimpleLexer& lexer) : lexer(lexer) {}
+    Parser(std::string src) : lexer(src) {
+        curToken = lexer.getNextToken();
+    }
 
-    int parse() {
-        Token token = lexer.getNextToken();
-        if (token.type == TokenType::EndOfFile) {
+    void parse() {
+        while (curToken.type != Tokentypes::Unknown) {
+            parseStatement();
+        }
+    }
+
+private:
+    void parseStatement() {
+        if (curToken.type == Tokentypes::Identifier) {
+            std::string id = curToken.value;
+            curToken = lexer.getNextToken();
+
+            if (curToken.type == Tokentypes::Assignment) {
+                curToken = lexer.getNextToken();
+                int res = parseExpression();
+                vars[id] = res;
+                std::cout << id << " = " << res << std::endl;
+            } else if (curToken.type == Tokentypes::Semicolon) {
+                if (vars.count(id) > 0) {
+                    std::cout << id << " = " << vars[id] << std::endl;
+                } else {
+                    std::cerr << "Error: Variable '" << id << "' is not defined." << std::endl;
+                }
+            } else {
+                std::cerr << "Error: Invalid statement." << std::endl;
+            }
+        } else {
+            std::cerr << "Error: Invalid statement." << std::endl;
+        }
+
+        if (curToken.type == Tokentypes::Semicolon) {
+            curToken = lexer.getNextToken();
+        } else {
+            std::cerr << "Error: Expected ';'." << std::endl;
+        }
+    }
+
+    int parsePrimary() {
+    if (curToken.type == Tokentypes::Integer) {
+        int val = std::stoi(curToken.value);
+        curToken = lexer.getNextToken();
+        return val;
+    } else if (curToken.type == Tokentypes::Identifier) {
+        std::string id = curToken.value;
+        curToken = lexer.getNextToken();
+
+        if (vars.count(id) > 0) {
+            return vars[id];
+        } else {
+            std::cerr << "Error: Variable '" << id << "' is not defined." << std::endl;
             return 0;
         }
-        int result = parseStatement(token);
-        return result;
-    }
-
-private:
-    int parseStatement(Token& token) {
-         if (token.type ==  TokenType::Print) {
-            token = lexer.getNextToken();  // get "print"
-            int outcome = parseExpression(token);
-            cout<<outcome <<endl;
-            return outcome;
-        } else if (token.type ==  TokenType::Var) {
-            token = lexer.getNextToken();  // get z variable name
-            if (token.type ==  TokenType::Identifier) {
-                string name_of_variable = token.value;
-                token = lexer.getNextToken();  // get "="
-
-                if (token.type ==  TokenType::Declare) {
-                    token = lexer.getNextToken();  // get a value
-
-                    // check if the variable is already declared
-                    if (variableTable.find(name_of_variable) != variableTable.end()) {
-                        cerr << "Error: Variable '" << name_of_variable << "' already declared" << endl;
-                        return 0;
-                    }
-
-                    int value = parseExpression(token);
-                    variableTable[name_of_variable] = value;
-                } else {
-                    cerr << "Error: Invalid variable declaration" << endl;
-                    return 0;
-                }
-            } else {
-                cerr << "Error: Invalid variable declaration" << endl;
-                return 0;
-            }
-        } else if (token.type ==  TokenType::Identifier) {
-            // assigning variable
-            string name_of_variable = tok.value;
-            token = lexer.getNextToken();  // get '='
-
-            if (token.type ==  TokenType::Declare) {
-                token = lexer.getNextToken();
-
-                // to check if z variable has been declared already
-                if (variableTable.find(name_of_variable) == variableTable.end()) {
-                    cerr << "Error: Variable '" << name_of_variable << "' not declared" << endl;
-                    return 0;
-                }
-
-                int value = parseExpression(token);
-                variableTable[name_of_variable] = value;
-
-            } else if (token.type ==  TokenType::Plus || token.type ==  TokenType::Minus || token.type ==  TokenType::Multiply || token.type ==  TokenType::Divide || token.type ==  TokenType::Modulo) {
-                token = lexer.getNextToken();
-                int value = parseExpression(token);
-                return value + variableTable[name_of_variable];
-
-            }
-            else {
-                cerr << "Error: Invalid variable assignment" << endl;
-                return 0;
-            }
-
+    } else if (curToken.type == Tokentypes::LeftParenthesis) {
+        curToken = lexer.getNextToken(); // get '('
+        int result = parseExpression();
+        if (curToken.type == Tokentypes::RightParenthesis) {
+            curToken = lexer.getNextToken(); // get ')'
+            return result;
         } else {
-            return parseExpression(token);
-            // Regular expression 
+            std::cerr << "Error: Expected ')'." << std::endl;
+            return 0;
         }
-
+    } else {
+        std::cerr << "Error: Invalid factor." << std::endl;
         return 0;
     }
+}
 
-    int parseExpression(Token& token) {
-      int result = parse_term(token);
+    int parseTerm() {
+    int res = parsePrimary();
 
-        while (token.type ==  TokenType::Plus || token.type ==  TokenType::Minus) {
-            if (token.type ==  TokenType::Plus) {
-                token = lexer.getNextToken();  // get '+'
-                result += parse_term(token);
-            } else if (token.type ==  TokenType::Minus) {
-                token = lexer.getNextToken();  // zen get '-'
-                result -= parse_term(token);
-            }
+    while (curToken.type == Tokentypes::Multiply || curToken.type == Tokentypes::Divide || curToken.type == Tokentypes::Modulo) {
+        Tokentypes op = curToken.type;
+        curToken = lexer.getNextToken();
+
+        int primary = parsePrimary();
+        if (op == Tokentypes::Multiply) {
+            res *= primary;
+        } else if (op == Tokentypes::Divide) {
+            res /= primary;
+        } else {
+            res %= primary;
         }
-        return result;
     }
 
-    int parseTerm(Token& token) {
-        int result = parse_factor(token);
+    return res;
+  }
 
-        while (token.type ==  TokenType::Multiply || token.type ==  TokenType::Divide || token.type ==  TokenType::Modulo) {
-            if (token.type ==  TokenType::Multiply) {
-                token = lexer.getNextToken();  // get '*' first
-                result *= parse_factor(token);
-            } else if (token.type ==  TokenType::Divide) {
-                token = lexer.getNextToken();  // get '/'
-                int divisor = parse_factor(token);
-                if (divisor != 0) {
-                    result /= divisor;
-                } else {
-                    cerr << "Error: Division by zero" << endl;
-                    return 0;
-                }
-            } else if (token.type ==  TokenType::Modulo) {
-                token = lexer.getNextToken();  // get '%'
-                int divisor = parse_factor(token);
-                if (divisor != 0) {
-                    result %= divisor;
-                } else {
-                    cerr << "Error: Modulo by zero" << endl;
-                    return 0;
-                }
-            }
+    int parseExpression() {
+
+    int res = parseTerm();
+    while (curToken.type == Tokentypes::Plus || curToken.type == Tokentypes::Minus) {
+        Tokentypes op = curToken.type;
+        curToken = lexer.getNextToken();
+
+        int term = parseTerm();
+        if (op == Tokentypes::Plus) {
+            res += term;
+        } else {
+            res -= term;
         }
-
-        return 0;
     }
 
-    int parseFactor(Token& token) {
-        if (token.type ==  TokenType::Integer) {
-            int value = stoi(token.value);
-            token = lexer.getNextToken();  // get variable
-            return value;
-        } else if (token.type ==  TokenType::Identifier) {
-            string name_of_variable = token.value;
-            token = lexer.getNextToken();  // get variable
+    return res;
+  }
+    int parseFactor() {
 
-            if (variableTable.find(name_of_variable) != variableTable.end()) {
-                return variableTable[name_of_variable];
+        if (curToken.type == Tokentypes::Integer) {
+            int val = std::stoi(curToken.value);
+            curToken = lexer.getNextToken();
+            return val;
+        } else if (curToken.type == Tokentypes::Identifier) {
+            std::string id = curToken.value;
+            curToken = lexer.getNextToken();
+
+            if (vars.count(id) > 0) {
+                return vars[id];
             } else {
-                cerr << "Error: Variable '" << name_of_variable << "' not found" << endl;
+                std::cerr << "Error: The variable '" << id << "' is not defined." << std::endl;
                 return 0;
             }
-
-        } else if (token.type ==  TokenType::LeftParenthesis) {
-            token = lexer.getNextToken();  // get '('
-            int result = parseExpression(tok);
-            if (token.type ==  TokenType::RightParenthesis) {
-                token = lexer.getNextToken();  // get ')'
-                return result;
-            } else {
-                cerr << "Error: The parenthesis in the given code doesn't match" << endl;
-                return 0;
-            }
+        } else {
+            std::cerr << "Error: Invalid factor." << std::endl;
+            return 0;
         }
-        cerr << "Error: Invalid factor" << token.value << endl;
-        return 0;
     }
 
-    SimpleLexer& lexer;
+    Lexer lexer;
+    Token curToken;
+    std::unordered_map<std::string, int> vars;
 };
 
-int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
-        return 1;
-    }
+int main() {
+    std::string source;
+    std::cout << "Press Enter and Space to quit" << std::endl;
+    std::cout << "Enter Statement: " << std::endl;
 
-    std::ifstream file(argv[1]);
-    if (!file.is_open()) {
-        std::cerr << "Error: Couldn't open the file '" << argv[1] << "'" << std::endl;
-        return 1;
-    }
-
-    std::string sourceCode;
-    std::string line;
-    while (std::getline(file, line)) {
-        SimpleLexer lexer(line);
-        SimpleParser parser(lexer);
-        int result = parser.parse();
+    while (true) {
+        std::getline(std::cin, source);
+        if (source.empty() && std::cin.peek() == ' ') {
+            break;
+        }
+        Parser parser(source);
+        parser.parse();
     }
 
     return 0;
 }
-
